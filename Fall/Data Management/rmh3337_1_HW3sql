@@ -1,0 +1,166 @@
+--Q1.
+--Which are the top 5 area codes with declining profits in terms of percentage and how much did the profits 
+--decline for these 5 area codes? This comparison should be done on an annual basis including all the products.
+
+CREATE or replace View firstprod AS
+(SELECT sum(profit) Sum2013, areacode
+FROM factcoffee
+WHERE extract(year from factorydate) = 2013
+GROUP BY areacode);
+
+CREATE or replace View secondprod AS
+(SELECT  sum(profit) Sum2012, areacode
+FROM factcoffee
+WHERE extract(year from factorydate) = 2012
+GROUP BY areacode);
+
+select firstprod.areacode, (sum2013-sum2012)/sum2012 PercentChange 
+from firstprod inner join secondprod on firstprod.areacode = secondprod.areacode
+order by (sum2013-sum2012)/sum2012
+fetch first 5 rows only
+;
+
+
+--Q2
+--Which 5 states have the highest marketing expenses as a percentage of sales? This comparison should be done on an 
+--annual basis including all the products.
+
+select extract(year from factorydate), state, sum((marketing)/sales) Marketing_Expense
+from factcoffee inner join 
+(
+select statecoffee.stateid, state, areacode
+from statecoffee inner join areacoffee on statecoffee.stateid = areacoffee.stateid
+) x 
+on x.areacode = factcoffee.areacode
+where marketing > 0
+group by state, extract(year from factorydate)
+order by sum((marketing)/sales) desc
+fetch first 10 rows only
+;
+
+--Q3
+--In each of these 5 states, find the top 10 area codes in terms of the spend on marketing expenses relative to others?
+
+select state, factcoffee.areacode, sum(marketing/totalexpenses)
+from factcoffee inner join 
+(
+select statecoffee.stateid, state, areacode
+from statecoffee inner join areacoffee on statecoffee.stateid = areacoffee.stateid
+where state = 'Nevada' or state = 'New York' or state = 'California' or state = 'Utah' or state = 'Washington'
+) x
+on x.areacode = factcoffee.areacode
+group by factcoffee.areacode, state
+order by sum(marketing/totalexpenses) desc
+fetch first 10 rows only;
+
+--Q4
+--In each market, which products have the greatest increase in profits? 
+--This comparisonshould be done on an annual basis including all the products.
+
+CREATE or replace View profinc AS
+(
+select market, prod2012.product Product, sum(sum2013-sum2012) Changes
+from prod2012 inner join
+(
+    select sum2013, prod2013.areacode, market, product
+    from prod2013 inner join 
+(
+        select statecoffee.stateid, market, areacode
+        from statecoffee inner join areacoffee on statecoffee.stateid = areacoffee.stateid
+
+    ) x
+    on x.areacode = prod2013.areacode) y
+
+on prod2012.areacode = y.areacode
+group by market, prod2012.product
+);
+
+CREATE or replace View west AS
+(
+select market, Product, Changes
+from (
+select market, Product, Changes
+from profinc
+where market = 'West'
+order by changes desc
+fetch first 1 row only));
+
+CREATE or replace View east AS
+(
+select market, Product, Changes
+from (
+select market, Product, Changes
+from profinc
+where market = 'East'
+order by changes desc
+fetch first 1 row only));
+
+CREATE or replace View south AS
+(
+select market, Product, Changes
+from (
+select market, Product, Changes
+from profinc
+where market = 'South'
+order by changes desc
+fetch first 1 row only));
+
+CREATE or replace View central AS
+(
+select market, Product, Changes
+from (
+select market, Product, Changes
+from profinc
+where market = 'Central'
+order by changes desc
+fetch first 1 row only));
+
+select  market, Product, Changes
+from West
+union 
+select  market, Product, Changes
+from East
+union
+select  market, Product, Changes
+from Central
+union
+select  market, Product, Changes
+from South;
+
+Select market, product, changes
+FRom profinc
+where changes in (select market, max(changes))
+group by market;
+
+--Q5
+--All the budgeted numbers are expected targets for 2012 and 2013. Identify the top 5
+--states for the year 2012 that have higher actual numbers relative to budgeted numbers
+--for profits and sales.
+
+create or replace view states as
+(select distinct state s, areacoffee.areacode area
+from areacoffee inner join statecoffee
+on areacoffee.stateid = statecoffee.stateid
+
+    );
+
+select s, sum(profit)-sum(budgetprofit)
+from factcoffee inner join states on 
+factcoffee.areacode = states.area
+where extract(year from factorydate) = 2012
+group by s
+order by (sum(profit)-sum(budgetprofit)) desc
+fetch first 5 rows only;
+
+select s, (sum(sales)-sum(budgetsales)) 
+from factcoffee inner join states on 
+factcoffee.areacode = states.area
+where extract(year from factorydate) = 2012
+group by s
+order by (sum(sales)-sum(budgetsales)) desc
+fetch first 5 rows only;
+
+
+
+
+

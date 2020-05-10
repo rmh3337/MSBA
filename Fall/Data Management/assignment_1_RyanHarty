@@ -1,0 +1,31 @@
+--Q.1
+select * 
+from factcoffee;
+
+--Q.2
+select factorydate, budgetsales, sales
+from factcoffee;
+
+--Q.3
+select sum(sales), extract(month from factorydate), extract(year from factorydate)
+from factcoffee
+where extract(year from factorydate) in (2012,2013)
+group by EXTRACT(month from factorydate), extract(year from factorydate)
+order by extract(year from factorydate);
+
+--q.4
+select sum(sales)
+from factcoffee
+where extract(year from factorydate) = 2012 and 
+extract(month from factorydate) = 5;
+
+--Q.5
+select x.product, round(sum(x.profit)/sum(x.sales),2) as margins, sum(x.sales)
+from
+(
+    select factcoffee.productid, prodcoffee.product, profit, sales
+    from factcoffee, prodcoffee
+    where factcoffee.productid = prodcoffee.productid)x
+group by x.product
+having round(sum(profit)/sum(sales),2) > .15
+order by sum(sales) desc;
